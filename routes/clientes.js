@@ -3,7 +3,7 @@ const routes = express.Router();
 const db = require('../db');
 
 routes.get('/usuarios', (req, res) => {
-    db.query('SELECT id_usuario,nombre,apellido,direccion,telefono,email  FROM usuarios', (err, results) => {
+    db.query('SELECT id_usuario,nombre,apellido,direccion,telefono,email  FROM usuarios WHERE tipo_usuario = "cliente"', (err, results) => {
         if (err) {
             console.error('Error fetching clients:', err);
             return res.status(500).json({ error: 'Internal server error' });
