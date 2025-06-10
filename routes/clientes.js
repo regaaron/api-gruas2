@@ -11,30 +11,44 @@ routes.get('/usuarios', (req, res) => {
         res.json(results);
     });
 });
+const bcrypt = require('bcrypt');
+
 routes.post('/login', (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required' });
+        return res.status(400).json({ error: 'Email y contraseña requeridos' });
     }
 
-    const sql = `
-        SELECT id_usuario, nombre, email, tipo_usuario
-        FROM usuarios
-        WHERE email = ? AND password = ? AND tipo_usuario = 'admin'
-    `;
+    const sql = 'SELECT * FROM usuarios WHERE email = ? AND tipo_usuario = "admin"';
+    db.query(sql, [email], async (err, results) => {
+        if (err) return res.status(500).json({ error: 'Error en el servidor' });
+        if (results.length === 0) return res.status(401).json({ error: 'Usuario no encontrado asegurate ser admin' });
 
-    db.query(sql, [email, password], (err, results) => {
-        if (err) {
-            console.error('Error during login:', err);
-            return res.status(500).json({ error: 'Internal server error' });
+        const user = results[0];
+
+        const hashRegex = /^\$2[aby]\$/; // Detecta si la contraseña ya está en formato bcrypt
+
+        if (hashRegex.test(user.password)) {
+            // Contraseña ya está encriptada con bcrypt
+            const match = await bcrypt.compare(password, user.password);
+            if (!match) return res.status(401).json({ error: 'Contraseña incorrecta' });
+        } else {
+            // Contraseña está en texto plano (insegura)
+            if (password !== user.password) return res.status(401).json({ error: 'Contraseña incorrecta' });
+
+            // Actualizar contraseña a versión encriptada
+            const newHashedPassword = await bcrypt.hash(password, 10);
+            db.query('UPDATE usuarios SET password = ? WHERE id_usuario = ?', [newHashedPassword, user.id_usuario]);
         }
-        if (results.length === 0) {
-            return res.status(401).json({ error: 'Invalid email or password or don\'t have access' });
-        }
-        res.json(results[0]);
+
+        // Acceso permitido
+        res.json({
+            id_usuario: user.id_usuario,
+            nombre: user.nombre,
+            email: user.email,
+            tipo_usuario: user.tipo_usuario
+        });
     });
 });
-
-
 module.exports = routes;
