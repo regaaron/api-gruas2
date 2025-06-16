@@ -1,17 +1,55 @@
 const express = require('express');
 const routes = express.Router();
 const db = require('../db');
+const bcrypt = require('bcrypt');
 
-routes.get('/ver-conductores', (req,res)=>{
-    db.query('SELECT * FROM usuarios WHERE tipo_usuario = "conductor"',(err,results)=>{
+routes.get('/ver-conductores', (req, res) => {
+    const sql = `
+        SELECT 
+            u.id_usuario, u.nombre, u.apellido, u.direccion, 
+            u.telefono, u.email, u.password,
+            uc.latitud, uc.longitud, uc.activo, uc.atendido,
+            s.espera, s.aceptada, s.id_cliente
+        FROM usuarios u
+        LEFT JOIN ubicaciones uc ON u.id_usuario = uc.id_usuario
+        LEFT JOIN solicitudes s ON u.id_usuario = s.id_conductor
+        WHERE u.tipo_usuario = 'conductor'
+    `;
+
+    db.query(sql, (err, results) => {
         if (err) {
             console.error('Error fetching conductores:', err);
             return res.status(500).json({ error: 'Internal server error' });
         }
-        res.json(results);
+
+        const conductores = results.map(conductor => ({
+            id_usuario: conductor.id_usuario,
+            nombre: conductor.nombre,
+            apellido: conductor.apellido,
+            direccion: conductor.direccion,
+            telefono: conductor.telefono,
+            email: conductor.email,
+            password: conductor.password,
+            ubicacion: {
+                latitud: conductor.latitud,
+                longitud: conductor.longitud,
+                activo: conductor.activo === 1,
+                atendido: conductor.atendido === 1
+            },
+            solicitud: conductor.id_cliente !== null ? {
+                espera: conductor.espera === 1,
+                usuario: conductor.id_cliente
+            } : {
+                espera: false,
+                usuario: 0
+            },
+            aceptada: conductor.aceptada === 1
+        }));
+
+        res.json(conductores);
     });
 });
-const bcrypt = require('bcrypt');
+
 
 routes.post('/Registrar-Conductor', async (req, res) => {
     const { nombre, apellido, direccion, telefono, email, password } = req.body;
@@ -89,7 +127,92 @@ routes.put('/actualizar-conductor/:id', async (req, res) => {
   }
 });
 
+routes.put('/actualizar-ubicacion/conductores/:id', async (req, res) => {
+    const { id } = req.params;
+    const { latitud, longitud, activo, atendido, espera, usuario } = req.body;
+    //console.log("Datos recibidos:", { latitud, longitud, activo, atendido, espera, usuario });
+    // Validar campos requeridos
+    if (latitud === undefined || longitud === undefined || activo === undefined || atendido === undefined) {
+        return res.status(400).json({ error: "'latitud', 'longitud', 'activo' y 'atendido' son campos obligatorios" });
+    }
 
 
+    try {
+        // Verificar que el conductor exista
+        const [conductor] = await db.promise().query(
+            'SELECT id_usuario FROM usuarios WHERE id_usuario = ? AND tipo_usuario = "conductor"',
+            [id]
+        );
+        
+        if (conductor.length === 0) {
+            return res.status(404).json({ error: 'Conductor no encontrado' });
+        }
+
+        // Convertir booleanos a 1/0 si es necesario
+        const activoNum = typeof activo === 'boolean' ? (activo ? 1 : 0) : activo;
+        const atendidoNum = typeof atendido === 'boolean' ? (atendido ? 1 : 0) : atendido;
+        const esperaNum = typeof espera === 'boolean' ? (espera ? 1 : 0) : espera;
+
+        // Actualizar ubicación
+        await db.promise().query(
+            `UPDATE ubicaciones
+             SET latitud = ?, longitud = ?, activo = ?, atendido = ? 
+             WHERE id_usuario = ?`,
+            [latitud, longitud, activoNum, atendidoNum, usuario]
+        );
+
+        // Actualizar solicitud si se proporciona
+        if (espera !== undefined || usuario !== undefined) {
+            await db.promise().query(
+                `UPDATE solicitudes
+                 SET id_conductor = ?, espera = ? 
+                 WHERE id_cliente = ?`,
+                [id, esperaNum, usuario]
+            );
+        }
+
+        res.status(200).json({
+            message: 'Datos del conductor actualizados exitosamente',
+            conductorId: id
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al actualizar el conductor' });
+    }
+});
+
+
+// Actualizar estado de aceptación
+routes.put('/actualizar-aceptada/conductores/:id', async (req, res) => {
+    const { id } = req.params;
+    const { aceptada } = req.body;
+    
+    const aceptanum = typeof aceptada === 'boolean' ? (aceptada ? 1 : 0) : aceptada;
+
+    if (aceptada === undefined) {
+        return res.status(400).json({ error: "'aceptada' es un campo obligatorio" });
+    }
+
+    try {
+        const [result] = await db.promise().query(
+            'UPDATE solicitudes SET aceptada = ? WHERE id_conductor = ?',
+            [aceptanum, id]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ error: 'Conductor no encontrado' });
+        }
+
+        res.status(200).json({
+            message: 'Campo "aceptada" actualizado exitosamente',
+            conductorId: id
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al actualizar el conductor' });
+    }
+});
 
 module.exports = routes;
