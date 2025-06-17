@@ -126,10 +126,10 @@ routes.put('/Actualizar-Viajes', async (req, res) => {
       { lat: latitud_cliente, lon: longitud_cliente }
     ) / 1000; // en kilómetros
 
-    const tarifa_base = 10; // puedes ajustar este valor
+    const tarifa_base = 150; // puedes ajustar este valor
     const costo_neutro = parseFloat((distancia * tarifa_base).toFixed(2));
     const costo_iva = parseFloat((costo_neutro * 1.16).toFixed(2));
-
+    console.log(`📌 Distancia calculada: ${distancia} km, Costo neutro: ${costo_neutro}, Costo IVA: ${costo_iva}`);
     // 4. Actualizar el viaje
     const sql = `
       UPDATE viaje
@@ -140,7 +140,7 @@ routes.put('/Actualizar-Viajes', async (req, res) => {
         longitud_conductor = ?, 
         costo_neutro = ?, 
         costo_iva = ?
-      WHERE id_conductor = 0 AND id_cliente = ?
+      WHERE id_conductor IS NULL AND id_cliente = ?
     `;
     const params = [
       id_conductor,

@@ -116,9 +116,6 @@ routes.post('/gestionar-solicitud', (req, res) => {
     const { id_cliente, id_conductor, espera = false, aceptada = false } = req.body;
     const conductor = id_conductor === 0 ? null : id_conductor;
 
-    console.log('📌 ID Cliente:', id_cliente);
-    console.log('📌 ID Conductor recibido:', id_conductor);
-    console.log('📌 ID Conductor procesado:', conductor);
     if (!id_cliente) {
         return res.status(400).json({ error: 'Se requiere id_cliente' });
     }
@@ -133,10 +130,9 @@ routes.post('/gestionar-solicitud', (req, res) => {
                 UPDATE solicitudes SET 
                     id_conductor = ?,
                     espera = ?,
-                    aceptada = ?,
                     fecha_hora = NOW()
                 WHERE id_cliente = ?`,
-                [conductor, espera, aceptada, id_cliente],
+                [conductor, espera, id_cliente],
                 (err) => {
                     if (err) {
                         console.error('[ERROR gestionar-solicitud - update]:', err);
@@ -182,7 +178,7 @@ routes.put('/actualizar-ubicacion/clientes/:id', (req, res) => {
     if (latitud === undefined && longitud === undefined && activo === undefined && atendido === undefined) {
         return res.status(400).json({ error: 'Debe proporcionar al menos un campo para actualizar' });
     }
-
+    console.log('📌Intentando actualizar ubicación del cliente:', id , latitud, longitud);
     const sql = `
         UPDATE ubicaciones SET
             latitud = COALESCE(?, latitud),

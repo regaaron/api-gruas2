@@ -153,13 +153,17 @@ routes.put('/actualizar-ubicacion/conductores/:id', async (req, res) => {
         const atendidoNum = typeof atendido === 'boolean' ? (atendido ? 1 : 0) : atendido;
         const esperaNum = typeof espera === 'boolean' ? (espera ? 1 : 0) : espera;
 
+        console.log('📌Intentando actualizar ubicación: ' + latitud + ', ' + longitud + ', ' + activoNum + ', ' + atendidoNum  + ', ' + id);  ;
         // Actualizar ubicación
         await db.promise().query(
             `UPDATE ubicaciones
              SET latitud = ?, longitud = ?, activo = ?, atendido = ? 
              WHERE id_usuario = ?`,
-            [latitud, longitud, activoNum, atendidoNum, usuario]
+            [latitud, longitud, activoNum, atendidoNum, id]
         );
+
+        
+    console.log('📌Intentando actualizar espera: ' + espera);
 
         // Actualizar solicitud si se proporciona
         if (espera !== undefined || usuario !== undefined) {
@@ -187,6 +191,8 @@ routes.put('/actualizar-ubicacion/conductores/:id', async (req, res) => {
 routes.put('/actualizar-aceptada/conductores/:id', async (req, res) => {
     const { id } = req.params;
     const { aceptada } = req.body;
+
+    console.log('📌Intentando actualizar aceptada: ' + aceptada);
     
     const aceptanum = typeof aceptada === 'boolean' ? (aceptada ? 1 : 0) : aceptada;
 
