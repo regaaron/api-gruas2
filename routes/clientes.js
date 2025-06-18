@@ -235,6 +235,33 @@ routes.put('/actualizar-ubicacion/clientes/:id', (req, res) => {
     });
 });
 
+// Eliminar una solicitud donde el id_conductor coincida
+routes.delete('/eliminar-solicitud/:id_conductor', async (req, res) => {
+    const { id_conductor } = req.params;
+
+    try {
+        const [result] = await db.promise().query(
+            `DELETE FROM solicitud 
+             WHERE id_conductor = ?`,
+            [id_conductor]
+        );
+
+        if (result.affectedRows === 0) {
+            return res.status(404).json({ message: 'No se encontró ninguna solicitud para eliminar' });
+        }
+
+        res.status(200).json({
+            message: 'Solicitud eliminada exitosamente',
+            conductorId: id_conductor,
+            filasEliminadas: result.affectedRows
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'Error al eliminar la solicitud' });
+    }
+});
+
 
 
 // Actualizar estado de aceptación
